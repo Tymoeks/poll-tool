@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikacja do Sondaży</title>
+    <style>
+        /* --- Globalne style i reset --- */
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --background-color: #f4f7f9;
+            --border-radius: 8px;
+            --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--background-color);
+            color: var(--dark-color);
+            line-height: 1.6;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px; /* ZMIANA: Zwiększona szerokość kontenera */
+            background-color: white;
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+
+        /* --- Style dla widoków (ukrywanie/pokazywanie) --- */
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+        
+        /* --- Nagłówki i tekst --- */
+        h1, h2, h3 {
+            margin-bottom: 20px;
+            color: var(--dark-color);
+            text-align: center;
+        }
+        h1 { font-size: 2.2em; }
+        h2 { font-size: 1.8em; color: var(--primary-color); }
+        h3 { font-size: 1.4em; }
+
+        /* --- Przyciski --- */
+        button {
+            display: inline-block;
+            padding: 12px 20px;
+            font-size: 1em;
+            font-weight: bold;
+            color: white;
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            text-align: center;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            background-color: var(--secondary-color);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary { background-color: var(--secondary-color); }
+        .btn-secondary:hover { background-color: #5a6268; }
+        .btn-danger { background-color: var(--danger-color); }
+        .btn-danger:hover { background-color: #c82333; }
+        .btn-block { display: block; width: 100%; margin-bottom: 10px; }
+
+
+        /* --- Formularze --- */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 10px;
+            font-size: 1em;
+            border: 1px solid #ccc;
+            border-radius: var(--border-radius);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        
+        input[type="text"]:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+        }
+
+        input[type="color"] {
+            width: 50px;
+            height: 40px;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            vertical-align: middle;
+        }
+        
+        .dynamic-list-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: var(--light-color);
+            border-radius: var(--border-radius);
+        }
+
+        .dynamic-list-item input[type="text"] {
+            flex-grow: 1;
+        }
+
+        /* --- Widok głosowania --- */
+        .vote-option {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: var(--light-color);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        .vote-option:hover {
+            background-color: #e2e6ea;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .vote-option input[type="radio"] {
+            margin-right: 15px;
+            width: 20px;
+            height: 20px;
+        }
+
+        /* --- Widok wyników (wykres) --- */
+        #chart-container {
+            margin-top: 30px;
+            padding: 20px;
+            border: 1px solid #eee;
+            border-radius: var(--border-radius);
+        }
+
+        .chart-bar-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .chart-label {
+            width: 250px; /* ZMIANA: Zwiększona szerokość etykiety */
+            padding-right: 15px;
+            text-align: right;
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-shrink: 0; /* Zapobiega kurczeniu się etykiety */
+        }
+
+        .chart-bar-wrapper {
+            flex-grow: 1;
+            background-color: #e9ecef;
+            border-radius: var(--border-radius);
+            height: 40px;
+            position: relative;
+        }
+
+        .chart-bar {
+            height: 100%;
+            border-radius: var(--border-radius);
+            transition: width 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            color: white;
+            font-weight: bold;
+            overflow: hidden;
+            font-size: 0.9em; /* Dopasowanie rozmiaru czcionki w pasku */
+        }
+
+        .chart-bar-value {
+            opacity: 0;
+            transition: opacity 0.5s 0.5s;
+        }
+
+        /* Animacje */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* --- Responsywność --- */
+        @media (max-width: 600px) {
+            .container { padding: 15px; max-width: 100%; }
+            h1 { font-size: 1.8em; }
+            h2 { font-size: 1.5em; }
+            .chart-bar-row { flex-direction: column; align-items: flex-start; }
+            .chart-label { width: 100%; text-align: left; margin-bottom: 5px; }
+            .chart-bar-wrapper { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Widok Konfiguracji Sondażu -->
+        <div id="config-view" class="view">
+            <h1>Stwórz Nowy Sondaż</h1>
+            <form id="config-form">
+                <div class="form-group">
+                    <label for="poll-title">Tytuł sondażu:</label>
+                    <input type="text" id="poll-title" required placeholder="np. Wybory na burmistrza miasta X">
+                </div>
+
+                <h3>Opcje odpowiedzi</h3>
+                <div id="options-container">
+                    <!-- Dynamicznie dodawane opcje -->
+                </div>
+                <button type="button" id="add-option-btn" class="btn-secondary">Dodaj opcję</button>
+
+                <h3 style="margin-top: 30px;">Opcje domyślne</h3>
+                <div class="form-group">
+                     <div class="dynamic-list-item">
+                        <input type="text" class="default-option-name" value="Nie wiem*" disabled>
+                        <input type="color" class="default-option-color" value="#808080">
+                    </div>
+                     <div class="dynamic-list-item">
+                        <input type="text" class="default-option-name" value="Nie udzielono odpowiedzi*" disabled>
+                        <input type="color" class="default-option-color" value="#c0c0c0">
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 30px;">Grupy respondentów</h3>
+                <div id="groups-container">
+                    <!-- Dynamicznie dodawane grupy -->
+                </div>
+                <button type="button" id="add-group-btn" class="btn-secondary">Dodaj grupę</button>
+
+                <hr style="margin: 30px 0;">
+
+                <button type="submit" id="start-poll-btn" class="btn-block">Zapisz konfigurację i rozpocznij</button>
+            </form>
+        </div>
+
+        <!-- Menu Główne -->
+        <div id="main-menu-view" class="view">
+            <h1 id="main-menu-title"></h1>
+            <button id="go-to-vote-btn" class="btn-block">Oddaj głos</button>
+            <button id="go-to-results-btn" class="btn-block">Zobacz wyniki</button>
+            <button id="reset-poll-btn" class="btn-block btn-danger">Skonfiguruj nową ankietę (usuwa dane)</button>
+        </div>
+
+        <!-- Widok Głosowania -->
+        <div id="voting-view" class="view">
+            <h2 id="vote-title"></h2>
+            <form id="vote-form">
+                <div class="form-group">
+                    <label>Wybierz jedną z opcji:</label>
+                    <div id="vote-options-container"></div>
+                </div>
+                <div class="form-group">
+                    <label for="vote-group-select">Wybierz swoją grupę:</label>
+                    <select id="vote-group-select" required>
+                        <option value="" disabled selected>-- Wybierz grupę --</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-block">Zagłosuj</button>
+                <button type="button" id="back-to-main-from-voting" class="btn-block btn-secondary">Wróć do menu</button>
+            </form>
+        </div>
+
+        <!-- Widok Wyników -->
+        <div id="results-view" class="view">
+            <h2 id="results-title">Wyniki Sondażu</h2>
+            <div class="form-group">
+                <label for="group-filter">Filtruj wyniki wg grupy:</label>
+                <select id="group-filter"></select>
+            </div>
+            <div id="chart-container">
+                <p>Brak głosów do wyświetlenia.</p>
+            </div>
+             <button type="button" id="back-to-main-from-results" class="btn-block btn-secondary" style="margin-top:20px;">Wróć do menu</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Stałe i zmienne globalne ---
+            const views = {
+                config: document.getElementById('config-view'),
+                mainMenu: document.getElementById('main-menu-view'),
+                voting: document.getElementById('voting-view'),
+                results: document.getElementById('results-view'),
+            };
+
+            const pollDataKey = 'pollApplicationData';
+            let pollData = {};
+
+            // --- Logika przełączania widoków ---
+            const showView = (viewName) => {
+                Object.values(views).forEach(view => view.classList.remove('active'));
+                if (views[viewName]) {
+                    views[viewName].classList.add('active');
+                }
+            };
+
+            // --- Inicjalizacja aplikacji ---
+            const initializeApp = () => {
+                const savedData = localStorage.getItem(pollDataKey);
+                if (savedData) {
+                    pollData = JSON.parse(savedData);
+                    setupMainMenu();
+                    showView('mainMenu');
+                } else {
+                    pollData = {
+                        title: '',
+                        options: [],
+                        groups: [],
+                        votes: [],
+                    };
+                    addOption(); 
+                    addOption();
+                    addGroup();
+                    showView('config');
+                }
+            };
+
+            // --- Logika konfiguracji ---
+            const configForm = document.getElementById('config-form');
+            const optionsContainer = document.getElementById('options-container');
+            const groupsContainer = document.getElementById('groups-container');
+            const addOptionBtn = document.getElementById('add-option-btn');
+            const addGroupBtn = document.getElementById('add-group-btn');
+
+            const addOption = () => {
+                const optionId = `opt_${Date.now()}_${Math.random()}`;
+                const div = document.createElement('div');
+                div.className = 'dynamic-list-item';
+                div.innerHTML = `
+                    <input type="text" class="option-name" placeholder="Nazwa opcji (np. Jan Kowalski)" required>
+                    <input type="color" class="option-color" value="${getRandomColor()}">
+                    <button type="button" class="btn-danger remove-btn">&times;</button>
+                `;
+                div.querySelector('.remove-btn').addEventListener('click', () => div.remove());
+                optionsContainer.appendChild(div);
+            };
+
+            const addGroup = () => {
+                const div = document.createElement('div');
+                div.className = 'dynamic-list-item';
+                div.innerHTML = `
+                    <input type="text" class="group-name" placeholder="Nazwa grupy (np. 18-25 lat)" required>
+                    <button type="button" class="btn-danger remove-btn">&times;</button>
+                `;
+                div.querySelector('.remove-btn').addEventListener('click', () => div.remove());
+                groupsContainer.appendChild(div);
+            };
+
+            const saveConfiguration = (e) => {
+                e.preventDefault();
+                
+                const title = document.getElementById('poll-title').value.trim();
+                if (!title) {
+                    alert('Proszę podać tytuł sondażu.');
+                    return;
+                }
+
+                const options = [];
+                document.querySelectorAll('#options-container .dynamic-list-item').forEach((item, index) => {
+                    const name = item.querySelector('.option-name').value.trim();
+                    const color = item.querySelector('.option-color').value;
+                    if (name) {
+                        options.push({ id: `opt_${index}`, name, color });
+                    }
+                });
+
+                document.querySelectorAll('.default-option-name').forEach((item, index) => {
+                     const name = item.value;
+                     const color = document.querySelectorAll('.default-option-color')[index].value;
+                     options.push({ id: `def_${index}`, name, color });
+                });
+
+                if (options.length < 2) {
+                    alert('Sondaż musi mieć co najmniej dwie opcje odpowiedzi.');
+                    return;
+                }
+
+                const groups = [];
+                document.querySelectorAll('#groups-container .dynamic-list-item').forEach((item, index) => {
+                    const name = item.querySelector('.group-name').value.trim();
+                    if (name) {
+                        groups.push({ id: `grp_${index}`, name });
+                    }
+                });
+                
+                if (groups.length === 0) {
+                    alert('Proszę dodać przynajmniej jedną grupę respondentów.');
+                    return;
+                }
+
+                pollData = { title, options, groups, votes: [] };
+                localStorage.setItem(pollDataKey, JSON.stringify(pollData));
+                alert('Konfiguracja zapisana pomyślnie!');
+                initializeApp();
+            };
+            
+            // --- Logika menu głównego ---
+            const setupMainMenu = () => {
+                document.getElementById('main-menu-title').textContent = pollData.title;
+            };
+
+            const resetPoll = () => {
+                if (confirm('Czy na pewno chcesz usunąć obecny sondaż i jego wyniki? Tej operacji nie można cofnąć.')) {
+                    localStorage.removeItem(pollDataKey);
+                    location.reload();
+                }
+            };
+            
+            // --- Logika głosowania ---
+            const voteForm = document.getElementById('vote-form');
+            const voteOptionsContainer = document.getElementById('vote-options-container');
+            const voteGroupSelect = document.getElementById('vote-group-select');
+
+            const setupVotingView = () => {
+                document.getElementById('vote-title').textContent = pollData.title;
+                
+                voteOptionsContainer.innerHTML = '';
+                pollData.options.forEach(option => {
+                    const div = document.createElement('div');
+                    div.className = 'vote-option';
+                    div.innerHTML = `
+                        <input type="radio" name="vote-option" value="${option.id}" id="vote-${option.id}" required>
+                        <label for="vote-${option.id}" style="flex-grow:1; cursor:pointer;">${option.name}</label>
+                    `;
+                    voteOptionsContainer.appendChild(div);
+                });
+
+                voteGroupSelect.innerHTML = '<option value="" disabled selected>-- Wybierz grupę --</option>';
+                pollData.groups.forEach(group => {
+                    const optionEl = document.createElement('option');
+                    optionEl.value = group.id;
+                    optionEl.textContent = group.name;
+                    voteGroupSelect.appendChild(optionEl);
+                });
+
+                showView('voting');
+            };
+
+            const handleVote = (e) => {
+                e.preventDefault();
+                const selectedOption = voteForm.querySelector('input[name="vote-option"]:checked');
+                const selectedGroup = voteGroupSelect.value;
+
+                if (!selectedOption) {
+                    alert('Proszę wybrać jedną z opcji.');
+                    return;
+                }
+                if (!selectedGroup) {
+                    alert('Proszę wybrać grupę.');
+                    return;
+                }
+
+                pollData.votes.push({
+                    optionId: selectedOption.value,
+                    groupId: selectedGroup,
+                });
+                localStorage.setItem(pollDataKey, JSON.stringify(pollData));
+                alert('Dziękujemy za oddanie głosu!');
+                voteForm.reset();
+                showView('mainMenu');
+            };
+
+            // --- Logika wyników i wykresu ---
+            const groupFilter = document.getElementById('group-filter');
+            const chartContainer = document.getElementById('chart-container');
+
+            const setupResultsView = () => {
+                document.getElementById('results-title').textContent = `Wyniki: ${pollData.title}`;
+                
+                groupFilter.innerHTML = '<option value="all">Wszystkie grupy</option>';
+                pollData.groups.forEach(group => {
+                    const optionEl = document.createElement('option');
+                    optionEl.value = group.id;
+                    optionEl.textContent = group.name;
+                    groupFilter.appendChild(optionEl);
+                });
+
+                displayChart('all');
+                showView('results');
+            };
+
+            const displayChart = (filterGroupId) => {
+                const votes = filterGroupId === 'all' 
+                    ? pollData.votes 
+                    : pollData.votes.filter(vote => vote.groupId === filterGroupId);
+                
+                // ZMIANA: Zapisanie całkowitej liczby głosów do obliczeń procentowych
+                const totalFilteredVotes = votes.length;
+
+                if (totalFilteredVotes === 0) {
+                    chartContainer.innerHTML = '<p>Brak głosów w tej grupie do wyświetlenia.</p>';
+                    return;
+                }
+
+                const voteCounts = {};
+                pollData.options.forEach(option => {
+                    voteCounts[option.id] = 0;
+                });
+                votes.forEach(vote => {
+                    if (voteCounts.hasOwnProperty(vote.optionId)) {
+                        voteCounts[vote.optionId]++;
+                    }
+                });
+
+                const sortedResults = pollData.options.map(option => ({
+                    ...option,
+                    count: voteCounts[option.id] || 0
+                })).sort((a, b) => b.count - a.count);
+
+                const maxVotes = Math.max(...sortedResults.map(r => r.count));
+                
+                chartContainer.innerHTML = '';
+                
+                sortedResults.forEach(result => {
+                    const barWidth = maxVotes > 0 ? (result.count / maxVotes) * 100 : 0;
+
+                    // ZMIANA: Logika do tworzenia etykiety z liczbą głosów i procentami
+                    let displayValue = result.count.toString();
+                    if (totalFilteredVotes > 0) { // Warunek "> 1 głos"
+                        const percentage = ((result.count / totalFilteredVotes) * 100).toFixed(1);
+                        displayValue = `${result.count} (${percentage}%)`;
+                    }
+                    
+                    const row = document.createElement('div');
+                    row.className = 'chart-bar-row';
+                    // ZMIANA: Użycie nowej zmiennej 'displayValue'
+                    row.innerHTML = `
+                        <div class="chart-label" title="${result.name}">${result.name}</div>
+                        <div class="chart-bar-wrapper">
+                            <div class="chart-bar" style="width: 0%; background-color: ${result.color};">
+                                <span class="chart-bar-value">${displayValue}</span>
+                            </div>
+                        </div>
+                    `;
+                    chartContainer.appendChild(row);
+                    
+                    setTimeout(() => {
+                        const bar = row.querySelector('.chart-bar');
+                        bar.style.width = `${barWidth}%`;
+                        if (barWidth > 15) { // Pokaż wartość tylko, jeśli pasek jest wystarczająco długi
+                           bar.querySelector('.chart-bar-value').style.opacity = '1';
+                        }
+                    }, 100);
+                });
+            };
+
+            // --- Helpery ---
+            const getRandomColor = () => '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+            
+            // --- Rejestracja zdarzeń ---
+            addOptionBtn.addEventListener('click', addOption);
+            addGroupBtn.addEventListener('click', addGroup);
+            configForm.addEventListener('submit', saveConfiguration);
+
+            document.getElementById('reset-poll-btn').addEventListener('click', resetPoll);
+            document.getElementById('go-to-vote-btn').addEventListener('click', setupVotingView);
+            document.getElementById('go-to-results-btn').addEventListener('click', setupResultsView);
+            
+            document.getElementById('back-to-main-from-voting').addEventListener('click', () => showView('mainMenu'));
+            document.getElementById('back-to-main-from-results').addEventListener('click', () => showView('mainMenu'));
+
+            voteForm.addEventListener('submit', handleVote);
+            groupFilter.addEventListener('change', (e) => displayChart(e.target.value));
+
+            // --- Start aplikacji ---
+            initializeApp();
+        });
+    </script>
+
+</body>
+</html>
