@@ -148,7 +148,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         const views = { config: document.getElementById('config-view'), mainMenu: document.getElementById('main-menu-view'), voting: document.getElementById('voting-view'), results: document.getElementById('results-view'), history: document.getElementById('history-view'), categories: document.getElementById('category-view'), };
         const pollDataKey = 'pollApplicationData';
-        const DEFAULT_OPTION_NAMES = ["Nie wiem", "Nie udzielono odpowiedzi*"];
+        const DEFAULT_OPTION_NAMES = ["Trudno powiedzieć*", "Nie udzielono odpowiedzi*"];
         let pollData = {}; let tempCategories = []; let tempPollData = {}; let selectedFilterGroupIds = [];
         const showView = (viewName) => { Object.values(views).forEach(v => v.classList.remove('active')); if(views[viewName]) views[viewName].classList.add('active'); };
         const initializeApp = () => { const savedData = localStorage.getItem(pollDataKey); if (savedData) { pollData = JSON.parse(savedData); pollData.categories = pollData.categories || []; pollData.groups = pollData.groups.map(g => ({ ...g, categoryId: g.categoryId || null })); pollData.votes = pollData.votes.map(v => ({ ...v, groupIds: v.groupIds || (v.groupId ? [v.groupId] : []) })); setupMainMenu(); showView('mainMenu'); } else { pollData = { title: '', options: [], groups: [], categories: [], votes: [] }; setupEditView(true); } };
