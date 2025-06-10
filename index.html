@@ -38,7 +38,7 @@
 
         .container {
             width: 100%;
-            max-width: 1000px; /* ZMIANA: Zwiększona szerokość kontenera */
+            max-width: 1000px;
             background-color: white;
             padding: 30px;
             border-radius: var(--border-radius);
@@ -186,14 +186,14 @@
         }
 
         .chart-label {
-            width: 250px; /* ZMIANA: Zwiększona szerokość etykiety */
+            width: 250px;
             padding-right: 15px;
             text-align: right;
             font-weight: bold;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            flex-shrink: 0; /* Zapobiega kurczeniu się etykiety */
+            flex-shrink: 0;
         }
 
         .chart-bar-wrapper {
@@ -215,12 +215,42 @@
             color: white;
             font-weight: bold;
             overflow: hidden;
-            font-size: 0.9em; /* Dopasowanie rozmiaru czcionki w pasku */
+            font-size: 0.9em;
         }
 
         .chart-bar-value {
             opacity: 0;
             transition: opacity 0.5s 0.5s;
+        }
+
+        /* --- NOWOŚĆ: Widok historii głosów --- */
+        #history-list-container {
+            max-height: 50vh;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: var(--border-radius);
+            padding: 10px;
+        }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .history-item:nth-child(even) {
+            background-color: var(--light-color);
+        }
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        .history-item-info {
+            flex-grow: 1;
+        }
+        .history-item-info span {
+            display: block;
+            font-size: 0.9em;
+            color: var(--secondary-color);
         }
 
         /* Animacje */
@@ -237,6 +267,7 @@
             .chart-bar-row { flex-direction: column; align-items: flex-start; }
             .chart-label { width: 100%; text-align: left; margin-bottom: 5px; }
             .chart-bar-wrapper { width: 100%; }
+            .history-item { flex-direction: column; align-items: flex-start; gap: 10px;}
         }
     </style>
 </head>
@@ -245,7 +276,7 @@
     <div class="container">
         <!-- Widok Konfiguracji Sondażu -->
         <div id="config-view" class="view">
-            <h1>Stwórz Nowy Sondaż</h1>
+            <h1>Stwórz / Edytuj Sondaż</h1>
             <form id="config-form">
                 <div class="form-group">
                     <label for="poll-title">Tytuł sondażu:</label>
@@ -253,15 +284,13 @@
                 </div>
 
                 <h3>Opcje odpowiedzi</h3>
-                <div id="options-container">
-                    <!-- Dynamicznie dodawane opcje -->
-                </div>
+                <div id="options-container"></div>
                 <button type="button" id="add-option-btn" class="btn-secondary">Dodaj opcję</button>
 
                 <h3 style="margin-top: 30px;">Opcje domyślne</h3>
                 <div class="form-group">
                      <div class="dynamic-list-item">
-                        <input type="text" class="default-option-name" value="Nie wiem*" disabled>
+                        <input type="text" class="default-option-name" value="Nie wiem" disabled>
                         <input type="color" class="default-option-color" value="#808080">
                     </div>
                      <div class="dynamic-list-item">
@@ -271,14 +300,13 @@
                 </div>
 
                 <h3 style="margin-top: 30px;">Grupy respondentów</h3>
-                <div id="groups-container">
-                    <!-- Dynamicznie dodawane grupy -->
-                </div>
+                <div id="groups-container"></div>
                 <button type="button" id="add-group-btn" class="btn-secondary">Dodaj grupę</button>
 
                 <hr style="margin: 30px 0;">
 
-                <button type="submit" id="start-poll-btn" class="btn-block">Zapisz konfigurację i rozpocznij</button>
+                <button type="submit" id="start-poll-btn" class="btn-block">Zapisz konfigurację</button>
+                <button type="button" id="back-to-main-from-config" class="btn-block btn-secondary">Anuluj i wróć</button>
             </form>
         </div>
 
@@ -287,6 +315,9 @@
             <h1 id="main-menu-title"></h1>
             <button id="go-to-vote-btn" class="btn-block">Oddaj głos</button>
             <button id="go-to-results-btn" class="btn-block">Zobacz wyniki</button>
+            <button id="go-to-history-btn" class="btn-block">Historia głosów</button>
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+            <button id="go-to-edit-btn" class="btn-block btn-secondary">Edytuj konfigurację</button>
             <button id="reset-poll-btn" class="btn-block btn-danger">Skonfiguruj nową ankietę (usuwa dane)</button>
         </div>
 
@@ -321,6 +352,15 @@
             </div>
              <button type="button" id="back-to-main-from-results" class="btn-block btn-secondary" style="margin-top:20px;">Wróć do menu</button>
         </div>
+
+        <!-- NOWOŚĆ: Widok Historii Głosów -->
+        <div id="history-view" class="view">
+            <h2>Historia Głosów</h2>
+            <div id="history-list-container">
+                <p>Brak oddanych głosów.</p>
+            </div>
+            <button type="button" id="back-to-main-from-history" class="btn-block btn-secondary" style="margin-top:20px;">Wróć do menu</button>
+        </div>
     </div>
 
     <script>
@@ -331,6 +371,7 @@
                 mainMenu: document.getElementById('main-menu-view'),
                 voting: document.getElementById('voting-view'),
                 results: document.getElementById('results-view'),
+                history: document.getElementById('history-view'), // NOWOŚĆ
             };
 
             const pollDataKey = 'pollApplicationData';
@@ -349,6 +390,14 @@
                 const savedData = localStorage.getItem(pollDataKey);
                 if (savedData) {
                     pollData = JSON.parse(savedData);
+                    // Prosta migracja danych dla głosów bez timestamp i id
+                    if (pollData.votes && pollData.votes.length > 0 && !pollData.votes[0].voteId) {
+                        pollData.votes = pollData.votes.map((vote, index) => ({
+                            ...vote,
+                            voteId: `migrated_${index}_${Date.now()}`,
+                            timestamp: Date.now() - (pollData.votes.length - index) * 1000 // Symulacja czasu
+                        }));
+                    }
                     setupMainMenu();
                     showView('mainMenu');
                 } else {
@@ -358,42 +407,63 @@
                         groups: [],
                         votes: [],
                     };
-                    addOption(); 
-                    addOption();
-                    addGroup();
-                    showView('config');
+                    setupEditView(true); // Uruchom widok konfiguracji dla nowego sondażu
                 }
             };
 
-            // --- Logika konfiguracji ---
+            // --- Logika konfiguracji i edycji ---
             const configForm = document.getElementById('config-form');
             const optionsContainer = document.getElementById('options-container');
             const groupsContainer = document.getElementById('groups-container');
             const addOptionBtn = document.getElementById('add-option-btn');
             const addGroupBtn = document.getElementById('add-group-btn');
 
-            const addOption = () => {
-                const optionId = `opt_${Date.now()}_${Math.random()}`;
+            const addOption = (name = '', color = getRandomColor()) => {
                 const div = document.createElement('div');
                 div.className = 'dynamic-list-item';
                 div.innerHTML = `
-                    <input type="text" class="option-name" placeholder="Nazwa opcji (np. Jan Kowalski)" required>
-                    <input type="color" class="option-color" value="${getRandomColor()}">
+                    <input type="text" class="option-name" placeholder="Nazwa opcji (np. Jan Kowalski)" required value="${name}">
+                    <input type="color" class="option-color" value="${color}">
                     <button type="button" class="btn-danger remove-btn">&times;</button>
                 `;
                 div.querySelector('.remove-btn').addEventListener('click', () => div.remove());
                 optionsContainer.appendChild(div);
             };
 
-            const addGroup = () => {
+            const addGroup = (name = '') => {
                 const div = document.createElement('div');
                 div.className = 'dynamic-list-item';
                 div.innerHTML = `
-                    <input type="text" class="group-name" placeholder="Nazwa grupy (np. 18-25 lat)" required>
+                    <input type="text" class="group-name" placeholder="Nazwa grupy (np. 18-25 lat)" required value="${name}">
                     <button type="button" class="btn-danger remove-btn">&times;</button>
                 `;
                 div.querySelector('.remove-btn').addEventListener('click', () => div.remove());
                 groupsContainer.appendChild(div);
+            };
+
+            // NOWOŚĆ: Funkcja do wypełniania formularza edycji
+            const setupEditView = (isNew = false) => {
+                optionsContainer.innerHTML = '';
+                groupsContainer.innerHTML = '';
+                
+                document.getElementById('poll-title').value = isNew ? '' : pollData.title;
+
+                const userOptions = isNew ? [{name:'', color:getRandomColor()}, {name:'', color:getRandomColor()}] : pollData.options.filter(opt => !opt.id.startsWith('def_'));
+                userOptions.forEach(opt => addOption(opt.name, opt.color));
+
+                const userGroups = isNew ? [{name:''}] : pollData.groups;
+                userGroups.forEach(group => addGroup(group.name));
+
+                if (!isNew) {
+                    document.querySelectorAll('.default-option-color').forEach((input, index) => {
+                        const defaultOption = pollData.options.find(o => o.id === `def_${index}`);
+                        if (defaultOption) input.value = defaultOption.color;
+                    });
+                }
+                
+                document.getElementById('back-to-main-from-config').style.display = isNew ? 'none' : 'block';
+
+                showView('config');
             };
 
             const saveConfiguration = (e) => {
@@ -420,8 +490,8 @@
                      options.push({ id: `def_${index}`, name, color });
                 });
 
-                if (options.length < 2) {
-                    alert('Sondaż musi mieć co najmniej dwie opcje odpowiedzi.');
+                if (options.length < 4) { // 2 użytkownika + 2 domyślne
+                    alert('Sondaż musi mieć co najmniej dwie opcje odpowiedzi (oprócz domyślnych).');
                     return;
                 }
 
@@ -438,7 +508,11 @@
                     return;
                 }
 
-                pollData = { title, options, groups, votes: [] };
+                pollData.title = title;
+                pollData.options = options;
+                pollData.groups = groups;
+                // głosy (pollData.votes) są celowo nietknięte podczas edycji
+                
                 localStorage.setItem(pollDataKey, JSON.stringify(pollData));
                 alert('Konfiguracja zapisana pomyślnie!');
                 initializeApp();
@@ -468,10 +542,7 @@
                 pollData.options.forEach(option => {
                     const div = document.createElement('div');
                     div.className = 'vote-option';
-                    div.innerHTML = `
-                        <input type="radio" name="vote-option" value="${option.id}" id="vote-${option.id}" required>
-                        <label for="vote-${option.id}" style="flex-grow:1; cursor:pointer;">${option.name}</label>
-                    `;
+                    div.innerHTML = `<input type="radio" name="vote-option" value="${option.id}" id="vote-${option.id}" required><label for="vote-${option.id}" style="flex-grow:1; cursor:pointer;">${option.name}</label>`;
                     voteOptionsContainer.appendChild(div);
                 });
 
@@ -491,18 +562,17 @@
                 const selectedOption = voteForm.querySelector('input[name="vote-option"]:checked');
                 const selectedGroup = voteGroupSelect.value;
 
-                if (!selectedOption) {
-                    alert('Proszę wybrać jedną z opcji.');
+                if (!selectedOption || !selectedGroup) {
+                    alert('Proszę wybrać opcję i grupę.');
                     return;
                 }
-                if (!selectedGroup) {
-                    alert('Proszę wybrać grupę.');
-                    return;
-                }
-
+                
+                // NOWOŚĆ: Dodajemy unikalne ID i timestamp
                 pollData.votes.push({
+                    voteId: `vote_${Date.now()}_${Math.random()}`,
                     optionId: selectedOption.value,
                     groupId: selectedGroup,
+                    timestamp: Date.now()
                 });
                 localStorage.setItem(pollDataKey, JSON.stringify(pollData));
                 alert('Dziękujemy za oddanie głosu!');
@@ -534,7 +604,6 @@
                     ? pollData.votes 
                     : pollData.votes.filter(vote => vote.groupId === filterGroupId);
                 
-                // ZMIANA: Zapisanie całkowitej liczby głosów do obliczeń procentowych
                 const totalFilteredVotes = votes.length;
 
                 if (totalFilteredVotes === 0) {
@@ -543,74 +612,103 @@
                 }
 
                 const voteCounts = {};
-                pollData.options.forEach(option => {
-                    voteCounts[option.id] = 0;
-                });
+                pollData.options.forEach(option => { voteCounts[option.id] = 0; });
                 votes.forEach(vote => {
-                    if (voteCounts.hasOwnProperty(vote.optionId)) {
-                        voteCounts[vote.optionId]++;
-                    }
+                    if (voteCounts.hasOwnProperty(vote.optionId)) voteCounts[vote.optionId]++;
                 });
 
-                const sortedResults = pollData.options.map(option => ({
-                    ...option,
-                    count: voteCounts[option.id] || 0
-                })).sort((a, b) => b.count - a.count);
-
+                const sortedResults = pollData.options.map(option => ({...option, count: voteCounts[option.id] || 0 })).sort((a, b) => b.count - a.count);
                 const maxVotes = Math.max(...sortedResults.map(r => r.count));
-                
                 chartContainer.innerHTML = '';
                 
                 sortedResults.forEach(result => {
                     const barWidth = maxVotes > 0 ? (result.count / maxVotes) * 100 : 0;
-
-                    // ZMIANA: Logika do tworzenia etykiety z liczbą głosów i procentami
                     let displayValue = result.count.toString();
-                    if (totalFilteredVotes > 0) { // Warunek "> 1 głos"
+                    if (result.count > 0 && totalFilteredVotes > 0) { // Zmieniono z >1 na >0, by pokazać % nawet dla 1 głosu
                         const percentage = ((result.count / totalFilteredVotes) * 100).toFixed(1);
                         displayValue = `${result.count} (${percentage}%)`;
                     }
                     
                     const row = document.createElement('div');
                     row.className = 'chart-bar-row';
-                    // ZMIANA: Użycie nowej zmiennej 'displayValue'
-                    row.innerHTML = `
-                        <div class="chart-label" title="${result.name}">${result.name}</div>
-                        <div class="chart-bar-wrapper">
-                            <div class="chart-bar" style="width: 0%; background-color: ${result.color};">
-                                <span class="chart-bar-value">${displayValue}</span>
-                            </div>
-                        </div>
-                    `;
+                    row.innerHTML = `<div class="chart-label" title="${result.name}">${result.name}</div><div class="chart-bar-wrapper"><div class="chart-bar" style="width: 0%; background-color: ${result.color};"><span class="chart-bar-value">${displayValue}</span></div></div>`;
                     chartContainer.appendChild(row);
                     
                     setTimeout(() => {
                         const bar = row.querySelector('.chart-bar');
                         bar.style.width = `${barWidth}%`;
-                        if (barWidth > 15) { // Pokaż wartość tylko, jeśli pasek jest wystarczająco długi
-                           bar.querySelector('.chart-bar-value').style.opacity = '1';
-                        }
+                        if (barWidth > 15) bar.querySelector('.chart-bar-value').style.opacity = '1';
                     }, 100);
                 });
             };
 
+            // --- NOWOŚĆ: Logika historii głosów ---
+            const historyListContainer = document.getElementById('history-list-container');
+            
+            const setupHistoryView = () => {
+                historyListContainer.innerHTML = '';
+                if (!pollData.votes || pollData.votes.length === 0) {
+                    historyListContainer.innerHTML = '<p>Brak oddanych głosów.</p>';
+                    showView('history');
+                    return;
+                }
+
+                const sortedVotes = [...pollData.votes].sort((a, b) => b.timestamp - a.timestamp);
+
+                sortedVotes.forEach(vote => {
+                    const option = pollData.options.find(o => o.id === vote.optionId);
+                    const group = pollData.groups.find(g => g.id === vote.groupId);
+                    const formattedDate = new Date(vote.timestamp).toLocaleString('pl-PL');
+
+                    const item = document.createElement('div');
+                    item.className = 'history-item';
+                    item.innerHTML = `
+                        <div class="history-item-info">
+                            <strong>${option ? option.name : '<em>Usunięta opcja</em>'}</strong>
+                            <span>Grupa: ${group ? group.name : '<em>Usunięta grupa</em>'} | ${formattedDate}</span>
+                        </div>
+                        <button class="btn-danger remove-vote-btn" data-vote-id="${vote.voteId}">Cofnij</button>
+                    `;
+                    historyListContainer.appendChild(item);
+                });
+                showView('history');
+            };
+
+            const handleHistoryActions = (e) => {
+                if (e.target.classList.contains('remove-vote-btn')) {
+                    if (!confirm('Czy na pewno chcesz cofnąć ten głos?')) return;
+                    
+                    const voteIdToRemove = e.target.dataset.voteId;
+                    pollData.votes = pollData.votes.filter(vote => vote.voteId !== voteIdToRemove);
+                    localStorage.setItem(pollDataKey, JSON.stringify(pollData));
+                    
+                    // Odśwież widok
+                    setupHistoryView();
+                }
+            };
+            
             // --- Helpery ---
             const getRandomColor = () => '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
             
             // --- Rejestracja zdarzeń ---
-            addOptionBtn.addEventListener('click', addOption);
-            addGroupBtn.addEventListener('click', addGroup);
+            addOptionBtn.addEventListener('click', () => addOption());
+            addGroupBtn.addEventListener('click', () => addGroup());
             configForm.addEventListener('submit', saveConfiguration);
 
             document.getElementById('reset-poll-btn').addEventListener('click', resetPoll);
             document.getElementById('go-to-vote-btn').addEventListener('click', setupVotingView);
             document.getElementById('go-to-results-btn').addEventListener('click', setupResultsView);
+            document.getElementById('go-to-edit-btn').addEventListener('click', () => setupEditView(false)); // NOWOŚĆ
+            document.getElementById('go-to-history-btn').addEventListener('click', setupHistoryView); // NOWOŚĆ
             
+            document.getElementById('back-to-main-from-config').addEventListener('click', () => showView('mainMenu'));
             document.getElementById('back-to-main-from-voting').addEventListener('click', () => showView('mainMenu'));
             document.getElementById('back-to-main-from-results').addEventListener('click', () => showView('mainMenu'));
+            document.getElementById('back-to-main-from-history').addEventListener('click', () => showView('mainMenu')); // NOWOŚĆ
 
             voteForm.addEventListener('submit', handleVote);
             groupFilter.addEventListener('change', (e) => displayChart(e.target.value));
+            historyListContainer.addEventListener('click', handleHistoryActions); // NOWOŚĆ
 
             // --- Start aplikacji ---
             initializeApp();
